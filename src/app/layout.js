@@ -1,5 +1,6 @@
 import localFont from "next/font/local";
 import "./globals.css";
+import Tabs from "@/components/Tabs";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -21,9 +22,12 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-100`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-100 transition-all`}
       >
-        {children}
+        <Tabs />
+        <div className="absolute left-1/2 -translate-x-1/2 h-[100v] w-[100vw] md:w-[864px] pt-14">
+          {children}
+        </div>
       </body>
     </html>
   );

@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import Header from "@/components/Header";
 
 const drumInfo = [
   { name: "kick", row: 0 },
@@ -7,22 +8,24 @@ const drumInfo = [
   { name: "hihat", row: 2 },
   { name: "clap", row: 3 },
   { name: "openhat", row: 4 },
-  { name: "cymbal", row: 5 },
+  { name: "crash", row: 5 },
 ];
 
 export default function Home() {
-  const [myId, setMyId] = useState(null);
+  const [i, setI] = useState("");
+  const [loading, setLoading] = useState(true);
   const [drum, setDrum] = useState(
     Array(6)
       .fill(null)
       .map(() => Array(16).fill(false))
   );
-  const [isConnected, setIsConnected] = useState(false);
   const socketRef = useRef(null);
   useEffect(() => {
     const connectWebSocket = async () => {
-      await fetch("/api/drum"); // WebSocket 서버 초기화
-      const ws = new WebSocket("ws://192.168.0.17:3003");
+      await fetch(`/api/drum`); // WebSocket 서버 초기화
+      const ws = new WebSocket(
+        `ws://${process.env.NEXT_PUBLIC_LOCAL_IP}:${process.env.NEXT_PUBLIC_SOCKET_PORT}`
+      );
 
       ws.onopen = () => {
         console.log("WebSocket connection established");
@@ -31,7 +34,8 @@ export default function Home() {
       ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
         if (data.type == "id") {
-          setMyId(data.id);
+          setI(data.id);
+          setLoading(false);
         }
         if (data.type == "broadcast") {
           setDrum((prevDrum) => {
@@ -39,6 +43,9 @@ export default function Home() {
             newDrum[data.row][data.col] = data.val ? true : false;
             return newDrum;
           });
+        }
+        if (data.type == "drumUpdate") {
+          setDrum(data.matrix);
         }
       };
 
@@ -52,8 +59,11 @@ export default function Home() {
 
       socketRef.current = ws;
     };
-
-    connectWebSocket();
+    try {
+      connectWebSocket();
+    } catch (e) {
+      console.log(e);
+    }
 
     return () => {
       if (socketRef.current) {
@@ -63,28 +73,29 @@ export default function Home() {
   }, []);
 
   const sendMessage = (row, col, val) => {
-    socketRef.current.send(JSON.stringify({ from: myId, row, col, val }));
+    socketRef.current.send(JSON.stringify({ from: i, row, col, val }));
   };
   return (
-    <div className="absolute left-1/2 -translate-x-1/2 h-[100v] w-[100vw] md:w-[864px] pt-14">
-      <div className="flex flex-col items-center">
-        <h1 className="font-bold text-2xl">Drum</h1>
-        {myId && <p className="text-sm text-gray-500">your id: {myId}</p>}
-      </div>
-
-      {myId ? (
+    <>
+      <Header myId={i} />
+      {!loading ? (
         drumInfo.map(({ name, row }) => (
           <div key={name} className="mt-4">
-            <h1 className="font-medium ml-2 text-xs text-gray-500 mb-1">
+            <h1 className="font-medium ml-2 text-xs text-[#c26537] mb-1">
               {name}
             </h1>
             <div className="flex w-full justify-between px-2">
               {[...Array(16)].map((_, col) => (
                 <button
                   className={`size-5 md:size-12 ${
-                    drum[row][col] ? "bg-gray-600" : "bg-gray-200"
+                    drum[row][col]
+                      ? "bg-[#e5753d]"
+                      : Math.floor(col / 4) % 2 == 1
+                      ? "bg-[#f8c6ad]"
+                      : "bg-[#fad8c7]"
                   } overflow-hidden`}
                   key={col}
+                  data-col={col}
                   onClick={() => {
                     sendMessage(row, col, !drum[row][col]);
                     const newDrum = [...drum];
@@ -97,10 +108,10 @@ export default function Home() {
           </div>
         ))
       ) : (
-        <div className="flex justify-center items-center w-full h-[200px] text-gray-500">
+        <div className="flex justify-center items-center w-full h-[200px] text-[#c26537]">
           loading...
         </div>
       )}
-    </div>
+    </>
   );
 }
